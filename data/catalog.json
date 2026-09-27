@@ -1,0 +1,450 @@
+[
+ {
+  "sn": 1,
+  "name": "Swept Elbow 87.5° UPVC DWV R/J Orange",
+  "sku": "E1-PV5-110",
+  "dimension": "110mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 2,
+  "name": "Y UPVC DWV S/J White",
+  "sku": "Y1-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 3,
+  "name": "Swept Elbow 87.5° UPVC DWV R/J Orange",
+  "sku": "E1-PV5-50",
+  "dimension": "50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 4,
+  "name": "Swept Elbow 87.5° UPVC DWV R/J Orange",
+  "sku": "E1-PV5-75",
+  "dimension": "75mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 5,
+  "name": "Elbow 87.5° UPVC DWV S/J White",
+  "sku": "E1-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 3000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 6,
+  "name": "Elbow 87.5° UPVC DWV S/J White",
+  "sku": "E1-PV4-160(W)",
+  "dimension": "160mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 7,
+  "name": "Elbow 87.5° UPVC DWV S/J White",
+  "sku": "E1-PV4-50(W)",
+  "dimension": "50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 8,
+  "name": "Elbow 87.5° UPVC DWV S/J White",
+  "sku": "E1-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 2000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 9,
+  "name": "Elbow 45° UPVC DWV R/J Orange",
+  "sku": "E3-PV5-110",
+  "dimension": "110mm",
+  "qty": 2500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 10,
+  "name": "Elbow 45° UPVC DWV R/J Orange",
+  "sku": "E3-PV5-160",
+  "dimension": "160mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 11,
+  "name": "Elbow 45° UPVC DWV R/J Orange",
+  "sku": "E3-PV5-50",
+  "dimension": "50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 12,
+  "name": "Elbow 45° UPVC DWV R/J Orange",
+  "sku": "E3-PV5-75",
+  "dimension": "75mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 13,
+  "name": "Elbow 45° UPVC DWV S/J White",
+  "sku": "E3-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 2000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 14,
+  "name": "Elbow 45° UPVC DWV S/J White",
+  "sku": "E3-PV4-160(W)",
+  "dimension": "160mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 15,
+  "name": "Elbow 45° UPVC DWV S/J White",
+  "sku": "E3-PV4-50(W)",
+  "dimension": "50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 16,
+  "name": "Elbow 45° UPVC DWV S/J White",
+  "sku": "E3-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 2000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 17,
+  "name": "Floor Trap Multi Branch UPVC DWV S/J White",
+  "sku": "FT2-PV4-11082/7550SW",
+  "dimension": "10x82/75x50 H:139",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 18,
+  "name": "Reducer Socket UPVC DWV R/J Orange",
+  "sku": "R1-PV5-11050",
+  "dimension": "110x50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 19,
+  "name": "Reducer Socket UPVC DWV R/J Orange",
+  "sku": "R1-PV5-11075",
+  "dimension": "110x75mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 20,
+  "name": "Reducer Socket UPVC DWV R/J Orange",
+  "sku": "R1-PV5-160110",
+  "dimension": "160x110mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 21,
+  "name": "Reducer Socket UPVC DWV R/J Orange",
+  "sku": "R1-PV5-7550",
+  "dimension": "75x50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 22,
+  "name": "Reducer Puch UPVC DWV S/J White",
+  "sku": "RB-PV4-11050(W)",
+  "dimension": "110x50mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 23,
+  "name": "Reducer Puch UPVC DWV S/J White",
+  "sku": "RB-PV4-11075(W)",
+  "dimension": "110/75mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 24,
+  "name": "Reducer Puch UPVC DWV S/J White",
+  "sku": "RB-PV4-160110(W)",
+  "dimension": "160x110mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 25,
+  "name": "Coupler Socket UPVC DWV R/J Orange",
+  "sku": "S1-PV5-110",
+  "dimension": "110mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 26,
+  "name": "Coupler Socket UPVC DWV R/J Orange",
+  "sku": "S1-PV5-160",
+  "dimension": "160mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 27,
+  "name": "Coupler Socket UPVC DWV R/J Orange",
+  "sku": "S1-PV5-50",
+  "dimension": "50mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 28,
+  "name": "Coupler Socket UPVC DWV R/J Orange",
+  "sku": "S1-PV5-75",
+  "dimension": "75mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 29,
+  "name": "Socket UPVC DWV S/J White",
+  "sku": "S1-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 30,
+  "name": "Socket UPVC DWV S/J White",
+  "sku": "S1-PV4-160(W)",
+  "dimension": "160mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 31,
+  "name": "Socket UPVC DWV S/J White",
+  "sku": "S1-PV4-50(W)",
+  "dimension": "50mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 32,
+  "name": "Socket UPVC DWV S/J White",
+  "sku": "S1-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 33,
+  "name": "Socket With Door UPVC DWV S/J Orange",
+  "sku": "S2D-PV6-110",
+  "dimension": "110mm",
+  "qty": 1200,
+  "uom": "PCS"
+ },
+ {
+  "sn": 34,
+  "name": "Socket With Door UPVC DWV S/J Orange",
+  "sku": "S2D-PV6-50",
+  "dimension": "50mm",
+  "qty": 600,
+  "uom": "PCS"
+ },
+ {
+  "sn": 35,
+  "name": "Socket With Door UPVC DWV S/J Orange",
+  "sku": "S2D-PV6-75",
+  "dimension": "75mm",
+  "qty": 600,
+  "uom": "PCS"
+ },
+ {
+  "sn": 36,
+  "name": "Syphon S-Trap UPVC DWV R/J Orange",
+  "sku": "SS2-PV5-110",
+  "dimension": "110mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 37,
+  "name": "Syphon S-Trap UPVC DWV S/J White",
+  "sku": "SS2-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 611,
+  "uom": "PCS"
+ },
+ {
+  "sn": 38,
+  "name": "Syphon S-Trap UPVC DWV S/J White",
+  "sku": "SS2-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 600,
+  "uom": "PCS"
+ },
+ {
+  "sn": 39,
+  "name": "Swept Tee 87.5° UPVC DWV R/J Orange",
+  "sku": "T1-PV5-110",
+  "dimension": "110mm",
+  "qty": 1700,
+  "uom": "PCS"
+ },
+ {
+  "sn": 40,
+  "name": "Swept Tee 87.5° UPVC DWV R/J Orange",
+  "sku": "T1-PV5-160",
+  "dimension": "160mm",
+  "qty": 600,
+  "uom": "PCS"
+ },
+ {
+  "sn": 41,
+  "name": "Swept Tee 87.5° UPVC DWV R/J Orange",
+  "sku": "T1-PV5-50",
+  "dimension": "50mm",
+  "qty": 600,
+  "uom": "PCS"
+ },
+ {
+  "sn": 42,
+  "name": "Swept Tee 87.5° UPVC DWV R/J Orange",
+  "sku": "T1-PV5-75",
+  "dimension": "75mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 43,
+  "name": "Tee UPVC DWV S/J White",
+  "sku": "T1-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 1582,
+  "uom": "PCS"
+ },
+ {
+  "sn": 44,
+  "name": "Tee UPVC DWV S/J White",
+  "sku": "T1-PV4-160(W)",
+  "dimension": "160mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 45,
+  "name": "Tee UPVC DWV S/J White",
+  "sku": "T1-PV4-50(W)",
+  "dimension": "50mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 46,
+  "name": "Tee UPVC DWV S/J White",
+  "sku": "T1-PV4-75(W)",
+  "dimension": "75mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 47,
+  "name": "PVC Solvent Cement",
+  "sku": "P-SCTPVC-473",
+  "dimension": "118 ml",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 48,
+  "name": "PVC Solvent Cement",
+  "sku": "P-SCTPVC-946",
+  "dimension": "118 ml",
+  "qty": 2000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 49,
+  "name": "Y Tee 45° UPVC DWV R/J Orange",
+  "sku": "Y1-PV5-110",
+  "dimension": "110mm",
+  "qty": 2024,
+  "uom": "PCS"
+ },
+ {
+  "sn": 50,
+  "name": "Y Tee 45° UPVC DWV R/J Orange",
+  "sku": "Y1-PV5-160",
+  "dimension": "160mm",
+  "qty": 1000,
+  "uom": "PCS"
+ },
+ {
+  "sn": 51,
+  "name": "Y Tee 45° UPVC DWV R/J Orange",
+  "sku": "Y1-PV5-50",
+  "dimension": "50mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 52,
+  "name": "Y Tee 45° UPVC DWV R/J Orange",
+  "sku": "Y1-PV5-75",
+  "dimension": "75mm",
+  "qty": 1500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 53,
+  "name": "Y UPVC DWV S/J White",
+  "sku": "Y1-PV4-110(W)",
+  "dimension": "110mm",
+  "qty": 2500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 54,
+  "name": "Y UPVC DWV S/J White",
+  "sku": "Y1-PV4-160(W)",
+  "dimension": "160mm",
+  "qty": 1100,
+  "uom": "PCS"
+ },
+ {
+  "sn": 55,
+  "name": "Y UPVC DWV S/J White",
+  "sku": "Y1-PV4-50(W)",
+  "dimension": "50mm",
+  "qty": 500,
+  "uom": "PCS"
+ },
+ {
+  "sn": 56,
+  "name": "Swept Elbow 87.5° UPVC DWV R/J Orange",
+  "sku": "E1-PV5-160",
+  "dimension": "160mm",
+  "qty": 1000,
+  "uom": "PCS"
+ }
+]

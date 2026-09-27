@@ -1,0 +1,155 @@
+import { PGlite } from "@electric-sql/pglite";
+import { randomBytes, scryptSync } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+type G = typeof globalThis & { __db?: Promise<PGlite> };
+const g = globalThis as G;
+
+export function hashPassword(pw: string) {
+  const salt = randomBytes(16).toString("hex");
+  return `${salt}:${scryptSync(pw, salt, 32).toString("hex")}`;
+}
+
+const SCHEMA = `
+CREATE TABLE IF NOT EXISTS users (
+  id SERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('admin','store')),
+  password_hash TEXT NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS categories (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS products (
+  id SERIAL PRIMARY KEY,
+  sku TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  description TEXT,
+  dimension TEXT NOT NULL DEFAULT '',
+  uom TEXT NOT NULL DEFAULT 'PCS',
+  category_id INT REFERENCES categories(id) ON DELETE SET NULL,
+  min_stock INT CHECK (min_stock IS NULL OR min_stock >= 0),
+  current_stock INT NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
+  archived BOOLEAN NOT NULL DEFAULT FALSE,
+  source_sn INT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id SERIAL PRIMARY KEY,
+  product_id INT NOT NULL REFERENCES products(id),
+  type TEXT NOT NULL CHECK (type IN ('opening','in','sale','damage','return')),
+  quantity INT NOT NULL CHECK (quantity > 0),
+  previous_stock INT NOT NULL CHECK (previous_stock >= 0),
+  new_stock INT NOT NULL CHECK (new_stock >= 0),
+  amount NUMERIC(14,2) CHECK (amount IS NULL OR amount >= 0),
+  reason TEXT,
+  created_by INT NOT NULL REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  CHECK (
+    (type IN ('opening','in','return') AND new_stock = previous_stock + quantity) OR
+    (type IN ('sale','damage') AND new_stock = previous_stock - quantity)
+  )
+);
+ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS source_movement_id INT REFERENCES stock_movements(id);
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'return_needs_source') THEN
+    ALTER TABLE stock_movements ADD CONSTRAINT return_needs_source
+      CHECK ((type = 'return') = (source_movement_id IS NOT NULL)) NOT VALID;
+  END IF;
+END $$;
+CREATE INDEX IF NOT EXISTS idx_mov_source ON stock_movements(source_movement_id);
+CREATE INDEX IF NOT EXISTS idx_mov_product ON stock_movements(product_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_mov_created ON stock_movements(created_at DESC);
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+CREATE OR REPLACE FUNCTION forbid_movement_change() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'stock_movements is append-only';
+END; $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION check_return_source() RETURNS trigger AS $$
+DECLARE src stock_movements%ROWTYPE; already INT;
+BEGIN
+  IF NEW.type <> 'return' THEN RETURN NEW; END IF;
+  SELECT * INTO src FROM stock_movements WHERE id = NEW.source_movement_id;
+  IF NOT FOUND OR src.type <> 'sale' OR src.product_id <> NEW.product_id THEN
+    RAISE EXCEPTION 'a return must reference a sale of the same product';
+  END IF;
+  SELECT COALESCE(sum(quantity),0) INTO already FROM stock_movements WHERE source_movement_id = src.id;
+  IF already + NEW.quantity > src.quantity THEN
+    RAISE EXCEPTION 'total returned would exceed the original sale quantity';
+  END IF;
+  RETURN NEW;
+END; $$ LANGUAGE plpgsql;
+DROP TRIGGER IF EXISTS trg_return_source ON stock_movements;
+CREATE TRIGGER trg_return_source BEFORE INSERT ON stock_movements
+  FOR EACH ROW EXECUTE FUNCTION check_return_source();
+DROP TRIGGER IF EXISTS trg_movements_immutable ON stock_movements;
+CREATE TRIGGER trg_movements_immutable BEFORE UPDATE OR DELETE ON stock_movements
+  FOR EACH ROW EXECUTE FUNCTION forbid_movement_change();
+`;
+
+async function init(): Promise<PGlite> {
+  const dir = process.env.PGDATA_DIR || path.join(process.cwd(), "data", "pgdata");
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  const db = new PGlite(dir);
+  await db.waitReady;
+  await db.exec(SCHEMA);
+
+  const { rows } = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM users");
+  if (rows[0].n === 0) await seed(db);
+  return db;
+}
+
+async function seed(db: PGlite) {
+  const adminPw = process.env.ADMIN_PASSWORD || "admin123";
+  const storePw = process.env.STORE_PASSWORD || "store123";
+  await db.transaction(async (tx) => {
+    const a = await tx.query<{ id: number }>(
+      "INSERT INTO users (username,name,role,password_hash) VALUES ('admin','Admin','admin',$1) RETURNING id",
+      [hashPassword(adminPw)],
+    );
+    await tx.query(
+      "INSERT INTO users (username,name,role,password_hash) VALUES ('store','Store','store',$1)",
+      [hashPassword(storePw)],
+    );
+    const settings: [string, string][] = [
+      ["company_name", "Conqueron Trading plc"],
+      ["currency", "ETB"],
+      ["timezone", "Africa/Addis_Ababa"],
+      ["store_can_damage", "true"],
+    ];
+    for (const [k, v] of settings) await tx.query("INSERT INTO settings VALUES ($1,$2)", [k, v]);
+
+    const file = path.join(process.cwd(), "data", "catalog.json");
+    const catalog = JSON.parse(fs.readFileSync(file, "utf8")) as {
+      sn: number; name: string; sku: string; dimension: string; qty: number; uom: string;
+    }[];
+    for (const p of catalog) {
+      const r = await tx.query<{ id: number }>(
+        "INSERT INTO products (sku,name,dimension,uom,current_stock,source_sn) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id",
+        [p.sku, p.name, p.dimension, p.uom, p.qty, p.sn],
+      );
+      await tx.query(
+        "INSERT INTO stock_movements (product_id,type,quantity,previous_stock,new_stock,created_by) VALUES ($1,'opening',$2,0,$2,$3)",
+        [r.rows[0].id, p.qty, a.rows[0].id],
+      );
+    }
+  });
+}
+
+export function getDb(): Promise<PGlite> {
+  if (!g.__db) g.__db = init();
+  return g.__db;
+}
+
+export async function q<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const db = await getDb();
+  return (await db.query<T>(sql, params)).rows;
+}
