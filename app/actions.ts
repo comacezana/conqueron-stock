@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { endSession, getSettings, getUser, requireUser, startSession, verifyPassword } from "@/lib/auth";
 import { getDb, hashPassword, q } from "@/lib/db";
-import { recordMovement } from "@/lib/stock";
+import { recordCorrection, recordMovement } from "@/lib/stock";
+import { emailReport, parseRecipients } from "@/lib/mail";
+import { MONTH_RE } from "@/lib/reports";
 import type { MovementType } from "@/lib/types";
 
 export interface FormState {
@@ -169,7 +171,10 @@ export async function saveSettings(_: FormState, f: FormData): Promise<FormState
     ["currency", str(f, "currency").toUpperCase() || "ETB"],
     ["timezone", tz],
     ["store_can_damage", f.get("store_can_damage") ? "true" : "false"],
+    ["report_recipients", parseRecipients(str(f, "report_recipients")).ok.join(", ")],
   ];
+  const bad = parseRecipients(str(f, "report_recipients")).bad;
+  if (bad.length) return { error: `Not a valid email address: ${bad.join(", ")}` };
   for (const [k, v] of entries)
     await q("INSERT INTO settings (key,value) VALUES ($1,$2) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value", [k, v]);
   revalidatePath("/", "layout");
@@ -196,4 +201,32 @@ export async function returnSale(_: FormState, f: FormData): Promise<FormState> 
   if (!r.ok) return { error: r.error };
   revalidatePath("/", "layout");
   redirect(`/history/${saleId}?returned=${qtyRaw}`);
+}
+
+/* ---------- monthly report email (Admin only) ---------- */
+export async function sendReport(_: FormState, f: FormData): Promise<FormState> {
+  await requireUser("admin");
+  const month = str(f, "month");
+  if (!MONTH_RE.test(month)) return { error: "Pick a month." };
+  const { ok, bad } = parseRecipients(str(f, "to"));
+  if (bad.length) return { error: `Not a valid email address: ${bad.join(", ")}` };
+  const r = await emailReport(month, ok);
+  if (!r.ok) return { error: r.error };
+  return { ok: `Report sent to ${ok.join(", ")}.` };
+}
+
+/* ---------- stock corrections (Admin only; adds a linked Correction, never edits history) ---------- */
+export async function correctStock(_: FormState, f: FormData): Promise<FormState> {
+  const user = await requireUser("admin");
+  const raw = str(f, "target").replace(/,/g, "");
+  if (!/^\d+$/.test(raw)) return { error: "Enter a whole number, 0 or more." };
+  const sourceId = Number(str(f, "sourceId")) || undefined;
+  const productId = Number(str(f, "productId")) || undefined;
+  const r = await recordCorrection({
+    sourceMovementId: sourceId, productId: sourceId ? undefined : productId,
+    target: Number(raw), reason: str(f, "reason"), userId: user.id, role: user.role,
+  });
+  if (!r.ok) return { error: r.error };
+  revalidatePath("/", "layout");
+  redirect(r.sourceMovementId ? `/history/${r.sourceMovementId}?corrected=1` : `/products/${r.productId}?corrected=1`);
 }

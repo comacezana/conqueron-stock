@@ -1,5 +1,5 @@
 export type Role = "admin" | "store";
-export type MovementType = "opening" | "in" | "sale" | "damage" | "return";
+export type MovementType = "opening" | "in" | "sale" | "damage" | "return" | "adjustment";
 export type StockStatus = "in" | "low" | "out" | "unset";
 
 export interface User { id: number; username: string; name: string; role: Role; active: boolean }
@@ -14,12 +14,16 @@ export interface MovementRow {
   source_movement_id: number | null;
   /** For sales: total quantity returned so far. */
   returned: number;
+  /** The entry's quantity after any Admin corrections linked to it (equals quantity if never corrected). */
+  corrected_quantity: number;
 }
 
 export const MOVEMENT_LABEL: Record<MovementType, string> = {
-  opening: "Opening Stock", in: "Stock In", sale: "Sale", damage: "Damage", return: "Return",
+  opening: "Opening Stock", in: "Stock In", sale: "Sale", damage: "Damage", return: "Return", adjustment: "Correction",
 };
 export const isIncrease = (t: MovementType) => t === "opening" || t === "in" || t === "return";
+/** Entries an Admin can correct by linking a Correction to them. */
+export const CORRECTABLE: MovementType[] = ["opening", "in", "sale", "damage"];
 
 export function statusOf(stock: number, min: number | null): StockStatus {
   if (stock <= 0) return "out";

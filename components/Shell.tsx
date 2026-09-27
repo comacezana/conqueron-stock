@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { ArrowUUpLeft, Package, SquaresFour, Tag, ClockCounterClockwise, Users, GearSix, Plus, Minus, Warning, SignOut, ListChecks } from "@phosphor-icons/react/dist/ssr";
+import { ArrowUUpLeft, Package, SquaresFour, Tag, ClockCounterClockwise, Users, GearSix, Plus, Minus, Warning, SignOut, ListChecks, FileText } from "@phosphor-icons/react/dist/ssr";
 import { logout } from "@/app/actions";
 import { getSettings, requireUser } from "@/lib/auth";
 import AppNav, { type NavItem } from "./AppNav";
 
 const ic = { size: 18, weight: "regular" as const };
+
 
 export default async function Shell({ children }: { children: ReactNode }) {
   const user = await requireUser();
@@ -26,6 +27,7 @@ export default async function Shell({ children }: { children: ReactNode }) {
     ...(admin ? [{ href: "/stock/return", label: "Return", icon: <ArrowUUpLeft {...ic} /> }] : []),
     { heading: "Records", href: "", label: "" },
     { href: "/history", label: "Stock History", icon: <ClockCounterClockwise {...ic} /> },
+    { href: "/reports", label: "Monthly reports", icon: <FileText {...ic} /> },
     ...(admin ? [
       { heading: "Admin", href: "", label: "" },
       { href: "/users", label: "Users", icon: <Users {...ic} /> },
@@ -42,12 +44,14 @@ export default async function Shell({ children }: { children: ReactNode }) {
           role={user.role}
           logout={
             <form action={logout}>
-              <button className="btn sm" aria-label="Sign out"><SignOut size={16} /></button>
+              <button className="btn ghost sm" aria-label="Sign out" title="Sign out"><SignOut size={16} /></button>
             </form>
           }
         />
       </Suspense>
-      <main className="main" id="main">{children}</main>
+      <div className="frame">
+        <main className="main" id="main">{children}</main>
+      </div>
     </div>
   );
 }

@@ -76,6 +76,7 @@ export async function getSettings() {
     currency: m.currency ?? "ETB",
     timezone: m.timezone ?? "Africa/Addis_Ababa",
     storeCanDamage: m.store_can_damage === "true",
+    reportRecipients: m.report_recipients ?? "",
   };
 }
 export type Settings = Awaited<ReturnType<typeof getSettings>>;

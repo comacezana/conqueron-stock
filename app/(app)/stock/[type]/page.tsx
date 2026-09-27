@@ -5,7 +5,7 @@ import type { MovementType } from "@/lib/types";
 import MovementForm from "@/components/MovementForm";
 import { PageHead } from "@/components/ui";
 
-const ROUTES: Record<string, { type: Exclude<MovementType, "return" | "opening">; title: string; desc: string }> = {
+const ROUTES: Record<string, { type: Exclude<MovementType, "return" | "opening" | "adjustment">; title: string; desc: string }> = {
   in: { type: "in", title: "Stock In", desc: "Choose a product and a quantity. That is all." },
   sale: { type: "sale", title: "Sale / Stock Out", desc: "Quantity sold and, if you have it, the amount for this sale." },
   damage: { type: "damage", title: "Damage", desc: "Record stock lost to damage, with the reason." },

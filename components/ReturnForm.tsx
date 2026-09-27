@@ -58,7 +58,7 @@ export default function ReturnForm({
         <div className="row"><span>Remaining returnable</span><b>{fmt(remaining)}</b></div>
         <div className="row" style={{ borderTop: "1px solid var(--hair)", paddingTop: 10 }}><span>Current stock</span><b>{fmt(stock)}</b></div>
         <div className="row"><span>Return</span><b className="pos">+{fmt(n)}</b></div>
-        <div className="row"><span>New stock</span><b className="big">{over ? "—" : fmt(stock + n)}</b></div>
+        <div className="row"><span>New stock</span><b className="big">{over ? "-" : fmt(stock + n)}</b></div>
         <p className="dim">The original sale stays unchanged. This creates a separate return linked to it.</p>
       </aside>
     </div>

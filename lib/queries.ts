@@ -44,7 +44,7 @@ export async function listProducts(f: ProductFilters, tz = "UTC"): Promise<Produ
     case "in": where.push("p.min_stock IS NOT NULL AND p.current_stock > p.min_stock"); break;
     case "unset": where.push("p.current_stock > 0 AND p.min_stock IS NULL"); break;
   }
-  const typeOk = f.type && ["opening", "in", "sale", "damage", "return"].includes(f.type);
+  const typeOk = f.type && TYPES.includes(f.type);
   const fromOk = f.from && DATE.test(f.from);
   const toOk = f.to && DATE.test(f.to);
   if (typeOk || fromOk || toOk) {
@@ -72,6 +72,14 @@ export async function filterOptions() {
   return { categories, dimensions: dimensions.map((d) => d.dimension), uoms: uoms.map((u) => u.uom) };
 }
 
+const TYPES = ["opening", "in", "sale", "damage", "return", "adjustment"];
+
+/** Quantity returned against a sale (returns only; corrections linked to the sale are not returns). */
+const RETURNED_SQL = `(SELECT COALESCE(sum(r.quantity),0)::int FROM stock_movements r WHERE r.source_movement_id = m.id AND r.type = 'return')`;
+/** What an entry amounts to after any Admin corrections linked to it. The original row never changes. */
+const CORRECTED_SQL = `(m.quantity + CASE WHEN m.type IN ('opening','in') THEN 1 ELSE -1 END *
+  (SELECT COALESCE(sum(a.new_stock - a.previous_stock),0) FROM stock_movements a WHERE a.source_movement_id = m.id AND a.type = 'adjustment'))::int`;
+
 export interface MovementFilters {
   productId?: number; search?: string; type?: string; from?: string; to?: string; category?: string; user?: string;
   returnable?: boolean; limit?: number; offset?: number;
@@ -86,19 +94,19 @@ export async function listMovements(f: MovementFilters, tz: string): Promise<{ r
     const p = add(`%${t.replace(/[\\%_]/g, "\\$&")}%`);
     where.push(`(p.name ILIKE ${p} OR p.sku ILIKE ${p} OR p.dimension ILIKE ${p} OR COALESCE(c.name,'') ILIKE ${p} OR COALESCE(m.reason,'') ILIKE ${p})`);
   }
-  if (f.type && ["opening", "in", "sale", "damage", "return"].includes(f.type)) where.push(`m.type = ${add(f.type)}`);
+  if (f.type && TYPES.includes(f.type)) where.push(`m.type = ${add(f.type)}`);
   if (f.category && /^\d+$/.test(f.category)) where.push(`p.category_id = ${add(Number(f.category))}`);
   if (f.user && /^\d+$/.test(f.user)) where.push(`m.created_by = ${add(Number(f.user))}`);
   if (f.from && DATE.test(f.from)) where.push(`m.created_at >= (${add(f.from)}::date::timestamp AT TIME ZONE ${add(tz)}::text)`);
   if (f.to && DATE.test(f.to)) where.push(`m.created_at < ((${add(f.to)}::date + 1)::timestamp AT TIME ZONE ${add(tz)}::text)`);
-  if (f.returnable) where.push("m.type = 'sale' AND m.quantity > (SELECT COALESCE(sum(r.quantity),0) FROM stock_movements r WHERE r.source_movement_id = m.id) AND p.archived = FALSE");
+  if (f.returnable) where.push(`m.type = 'sale' AND ${CORRECTED_SQL} > ${RETURNED_SQL} AND p.archived = FALSE`);
   const w = where.length ? "WHERE " + where.join(" AND ") : "";
   const from = `FROM stock_movements m JOIN products p ON p.id=m.product_id LEFT JOIN categories c ON c.id=p.category_id JOIN users u ON u.id=m.created_by`;
   const total = (await q<{ n: number }>(`SELECT count(*)::int n ${from} ${w}`, params))[0].n;
   const rows = await q<MovementRow>(
     `SELECT m.id,m.product_id,p.sku,p.name,p.dimension,p.uom,m.type,m.quantity,m.previous_stock,m.new_stock,m.amount,m.reason,
             m.created_by,u.name AS user_name,u.role AS user_role,m.created_at,m.source_movement_id,
-            (SELECT COALESCE(sum(r.quantity),0)::int FROM stock_movements r WHERE r.source_movement_id = m.id) AS returned
+            ${RETURNED_SQL} AS returned, ${CORRECTED_SQL} AS corrected_quantity
      ${from} ${w} ORDER BY m.created_at DESC, m.id DESC LIMIT ${f.limit ?? 50} OFFSET ${f.offset ?? 0}`,
     params,
   );
@@ -120,7 +128,7 @@ export async function dashboardStats() {
 const MOVEMENT_FROM = `FROM stock_movements m JOIN products p ON p.id=m.product_id JOIN users u ON u.id=m.created_by`;
 const MOVEMENT_COLS = `m.id,m.product_id,p.sku,p.name,p.dimension,p.uom,m.type,m.quantity,m.previous_stock,m.new_stock,m.amount,m.reason,
   m.created_by,u.name AS user_name,u.role AS user_role,m.created_at,m.source_movement_id,
-  (SELECT COALESCE(sum(r.quantity),0)::int FROM stock_movements r WHERE r.source_movement_id = m.id) AS returned`;
+  ${RETURNED_SQL} AS returned, ${CORRECTED_SQL} AS corrected_quantity`;
 
 export async function getMovement(id: number): Promise<(MovementRow & { archived: boolean }) | null> {
   if (!Number.isInteger(id)) return null;
@@ -128,4 +136,7 @@ export async function getMovement(id: number): Promise<(MovementRow & { archived
 }
 
 export const listReturnsOf = (saleId: number) =>
-  q<MovementRow>(`SELECT ${MOVEMENT_COLS} ${MOVEMENT_FROM} WHERE m.source_movement_id=$1 ORDER BY m.created_at, m.id`, [saleId]);
+  q<MovementRow>(`SELECT ${MOVEMENT_COLS} ${MOVEMENT_FROM} WHERE m.source_movement_id=$1 AND m.type='return' ORDER BY m.id`, [saleId]);
+
+export const listCorrectionsOf = (id: number) =>
+  q<MovementRow>(`SELECT ${MOVEMENT_COLS} ${MOVEMENT_FROM} WHERE m.source_movement_id=$1 AND m.type='adjustment' ORDER BY m.id`, [id]);

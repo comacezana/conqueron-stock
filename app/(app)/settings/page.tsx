@@ -1,4 +1,5 @@
 import { getSettings, requireUser } from "@/lib/auth";
+import { mailConfigured } from "@/lib/mail";
 import { SettingsForm } from "@/components/AdminForms";
 import { PageHead } from "@/components/ui";
 
@@ -7,7 +8,7 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHead title="Settings" />
-      <SettingsForm v={await getSettings()} />
+      <SettingsForm v={await getSettings()} mailReady={mailConfigured()} />
     </>
   );
 }

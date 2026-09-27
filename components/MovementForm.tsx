@@ -10,7 +10,7 @@ import { statusOf } from "@/lib/types";
 
 export interface PickProduct { id: number; sku: string; name: string; dimension: string; uom: string; stock: number; min: number | null }
 
-const COPY: Record<Exclude<MovementType, "return" | "opening">, { title: string; cta: string; sign: 1 | -1 }> = {
+const COPY: Record<Exclude<MovementType, "return" | "opening" | "adjustment">, { title: string; cta: string; sign: 1 | -1 }> = {
   in: { title: "Stock In", cta: "Save Stock In", sign: 1 },
   sale: { title: "Sale / Stock Out", cta: "Save sale", sign: -1 },
   damage: { title: "Damage", cta: "Save damage", sign: -1 },
@@ -25,7 +25,7 @@ const fmt = (n: number) => new Intl.NumberFormat("en-US").format(n);
 
 export default function MovementForm({
   type, products, initialId, currency,
-}: { type: Exclude<MovementType, "return" | "opening">; products: PickProduct[]; initialId?: number; currency: string }) {
+}: { type: Exclude<MovementType, "return" | "opening" | "adjustment">; products: PickProduct[]; initialId?: number; currency: string }) {
   const c = COPY[type];
   const [state, action] = useActionState<FormState, FormData>(moveStock, {});
   const [sel, setSel] = useState<number | null>(initialId ?? null);
@@ -119,7 +119,7 @@ export default function MovementForm({
             <div className="row"><span>Previous stock</span><b>{fmt(stock)}</b></div>
             <div className="row"><span>{c.title}</span><b className={c.sign > 0 ? "pos" : "neg"}>{c.sign > 0 ? "+" : "−"}{fmt(n)}</b></div>
             <div className="row" style={{ borderTop: "1px solid var(--hair)", paddingTop: 10 }}>
-              <span>New stock</span><b className="big">{over ? "—" : fmt(next)}</b>
+              <span>New stock</span><b className="big">{over ? "-" : fmt(next)}</b>
             </div>
             <span className="badge in" style={{ display: over ? "none" : undefined, ...(badgeStyle(next, cur.min)) }}>{statusText(next, cur.min)}</span>
           </>

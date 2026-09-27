@@ -24,27 +24,29 @@ export default async function ProductPage({ params, searchParams }: { params: Pr
 
   return (
     <>
-      <p className="dim" style={{ marginBottom: 8 }}><Link href="/inventory" className="link">Inventory</Link> / {p.sku}</p>
+      <p className="crumb"><Link href="/inventory" className="link">Inventory</Link> / {p.sku}</p>
+      {first(sp.corrected) && <div className="okmsg" role="status" style={{ marginBottom: 16 }}>Correction saved. Stock is now {num(p.current_stock)} {p.uom}.</div>}
       <div className="ph">
         <div>
           <h1 style={{ fontSize: 24, lineHeight: "32px", fontWeight: 650, letterSpacing: "-0.02em" }}>{p.name}</h1>
           <div className="kv">
             <div><small>SKU</small><b className="mono" style={{ userSelect: "all" }}>{p.sku}</b></div>
-            <div><small>Dimension</small><b>{p.dimension || "—"}</b></div>
+            <div><small>Dimension</small><b>{p.dimension || "-"}</b></div>
             <div><small>UOM</small><b>{p.uom}</b></div>
-            <div><small>Category</small><b>{p.category ?? "—"}</b></div>
+            <div><small>Category</small><b>{p.category ?? "-"}</b></div>
             <div><small>Minimum stock</small><b className="num">{p.min_stock === null ? "Not set" : num(p.min_stock)}</b></div>
           </div>
           {p.description && <p style={{ marginTop: 12, color: "var(--text-2)" }}>{p.description}</p>}
         </div>
         <div style={{ textAlign: "right" }}>
-          <small className="dim">CURRENT STOCK</small>
+          <small className="dim">Current stock</small>
           <div className="big">{num(p.current_stock)} <span className="dim" style={{ fontSize: 16, fontFamily: "var(--sans)", letterSpacing: 0 }}>{p.uom}</span></div>
           <div style={{ marginTop: 8 }}><StatusBadge stock={p.current_stock} min={p.min_stock} /></div>
         </div>
       </div>
       <div className="actions" style={{ marginBottom: 24 }}>
         {p.archived ? <span className="tag">Archived. Restore it from Products to record stock.</span> : <StockActions id={p.id} admin={admin} storeCanDamage={s.storeCanDamage} size="md" />}
+        {admin && !p.archived && <Link className="btn" href={`/products/${p.id}/correct`}>Correct stock</Link>}
         {admin && <Link className="btn" href={`/products/${p.id}/edit`}>Edit product</Link>}
       </div>
       <div className="sec-h"><h2 style={{ font: "inherit" }}>Stock history</h2></div>

@@ -7,6 +7,8 @@ import { List, X } from "@phosphor-icons/react";
 
 export interface NavItem { href: string; label: string; icon?: ReactNode; sub?: boolean; heading?: string }
 
+const initials = (name: string) => name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("") || "?";
+
 export default function AppNav({
   items, company, userName, role, logout,
 }: { items: NavItem[]; company: string; userName: string; role: string; logout: ReactNode }) {
@@ -25,17 +27,24 @@ export default function AppNav({
     return true;
   };
 
+  const brand = (
+    <div className="brand">
+      <span className="mark" aria-hidden="true">{company.trim()[0]?.toUpperCase() ?? "C"}</span>
+      <div><b>{company}</b><span>Stock ledger</span></div>
+    </div>
+  );
+
   return (
     <>
       <div className="topbar">
-        <button className="btn sm" onClick={() => setOpen(true)} aria-label="Open menu"><List size={18} weight="bold" /></button>
-        <b>{company}</b>
+        <button className="btn ghost sm" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}><List size={20} /></button>
+        {brand}
       </div>
       {open && <div className="scrim" onClick={() => setOpen(false)} />}
       <aside className={`side${open ? " open" : ""}`} aria-label="Main navigation">
-        <div className="brand" style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-          <div><b>{company}</b><span>Stock ledger</span></div>
-          {open && <button className="btn sm" onClick={() => setOpen(false)} aria-label="Close menu"><X size={16} /></button>}
+        <div className="side-top">
+          {brand}
+          {open && <button className="btn ghost sm" onClick={() => setOpen(false)} aria-label="Close menu"><X size={18} /></button>}
         </div>
         <nav className="nav" onClick={() => setOpen(false)}>
           {items.map((it) =>
@@ -46,7 +55,8 @@ export default function AppNav({
             ))}
         </nav>
         <div className="who">
-          <div><b>{userName}</b><small>{role}</small></div>
+          <span className="avatar" aria-hidden="true">{initials(userName)}</span>
+          <div className="who-t"><b>{userName}</b><small>{role === "admin" ? "Admin" : "Store"}</small></div>
           {logout}
         </div>
       </aside>

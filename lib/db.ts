@@ -26,7 +26,8 @@ export interface Db extends Tx {
 type G = typeof globalThis & { __db?: Promise<Db> };
 const g = globalThis as G;
 
-const SCHEMA = `
+/** Idempotent schema + in-place migrations. Exported for the migration test. */
+export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,
@@ -57,24 +58,44 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS stock_movements (
   id SERIAL PRIMARY KEY,
   product_id INT NOT NULL REFERENCES products(id),
-  type TEXT NOT NULL CHECK (type IN ('opening','in','sale','damage','return')),
+  type TEXT NOT NULL,
   quantity INT NOT NULL CHECK (quantity > 0),
   previous_stock INT NOT NULL CHECK (previous_stock >= 0),
   new_stock INT NOT NULL CHECK (new_stock >= 0),
   amount NUMERIC(14,2) CHECK (amount IS NULL OR amount >= 0),
   reason TEXT,
   created_by INT NOT NULL REFERENCES users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  CHECK (
-    (type IN ('opening','in','return') AND new_stock = previous_stock + quantity) OR
-    (type IN ('sale','damage') AND new_stock = previous_stock - quantity)
-  )
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ALTER TABLE stock_movements ADD COLUMN IF NOT EXISTS source_movement_id INT REFERENCES stock_movements(id);
+-- Movement rules as named constraints. Replaces the unnamed checks older databases were created with,
+-- so existing databases migrate in place on start-up. Idempotent.
 DO $$ BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'return_needs_source') THEN
-    ALTER TABLE stock_movements ADD CONSTRAINT return_needs_source
-      CHECK ((type = 'return') = (source_movement_id IS NOT NULL)) NOT VALID;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stock_movements_type_check') THEN
+    ALTER TABLE stock_movements DROP CONSTRAINT stock_movements_type_check;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'stock_movements_check') THEN
+    ALTER TABLE stock_movements DROP CONSTRAINT stock_movements_check;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'return_needs_source') THEN
+    ALTER TABLE stock_movements DROP CONSTRAINT return_needs_source;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'movement_type_valid') THEN
+    ALTER TABLE stock_movements ADD CONSTRAINT movement_type_valid
+      CHECK (type IN ('opening','in','sale','damage','return','adjustment'));
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'movement_balance_valid') THEN
+    ALTER TABLE stock_movements ADD CONSTRAINT movement_balance_valid CHECK (
+      (type IN ('opening','in','return') AND new_stock = previous_stock + quantity) OR
+      (type IN ('sale','damage') AND new_stock = previous_stock - quantity) OR
+      (type = 'adjustment' AND (new_stock = previous_stock + quantity OR new_stock = previous_stock - quantity))
+    );
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'movement_source_valid') THEN
+    ALTER TABLE stock_movements ADD CONSTRAINT movement_source_valid CHECK (
+      (type <> 'return' OR source_movement_id IS NOT NULL) AND
+      (type IN ('return','adjustment') OR source_movement_id IS NULL)
+    );
   END IF;
 END $$;
 CREATE INDEX IF NOT EXISTS idx_mov_source ON stock_movements(source_movement_id);
@@ -84,23 +105,47 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
-CREATE OR REPLACE FUNCTION check_return_source() RETURNS trigger AS $$
-DECLARE src stock_movements%ROWTYPE; already INT;
+DROP TRIGGER IF EXISTS trg_return_source ON stock_movements;
+DROP FUNCTION IF EXISTS check_return_source();
+-- Linked movements: a Return must come from a sale and never exceed what was (effectively) sold;
+-- a Correction must target an opening/stock-in/sale/damage entry of the same product and cannot
+-- make that entry negative, or push a sale below what has already been returned from it.
+CREATE OR REPLACE FUNCTION check_movement_source() RETURNS trigger AS $$
+DECLARE src stock_movements%ROWTYPE; prior INT; already INT; effective INT;
 BEGIN
-  IF NEW.type <> 'return' THEN RETURN NEW; END IF;
+  IF NEW.source_movement_id IS NULL THEN RETURN NEW; END IF;
   SELECT * INTO src FROM stock_movements WHERE id = NEW.source_movement_id;
-  IF NOT FOUND OR src.type <> 'sale' OR src.product_id <> NEW.product_id THEN
-    RAISE EXCEPTION 'a return must reference a sale of the same product';
+  IF NOT FOUND OR src.product_id <> NEW.product_id THEN
+    RAISE EXCEPTION 'a linked movement must belong to the same product';
   END IF;
-  SELECT COALESCE(sum(quantity),0) INTO already FROM stock_movements WHERE source_movement_id = src.id;
-  IF already + NEW.quantity > src.quantity THEN
-    RAISE EXCEPTION 'total returned would exceed the original sale quantity';
+  SELECT COALESCE(sum(a.new_stock - a.previous_stock),0) INTO prior
+    FROM stock_movements a WHERE a.source_movement_id = src.id AND a.type = 'adjustment';
+  SELECT COALESCE(sum(r.quantity),0) INTO already
+    FROM stock_movements r WHERE r.source_movement_id = src.id AND r.type = 'return';
+  IF NEW.type = 'adjustment' THEN
+    IF src.type NOT IN ('opening','in','sale','damage') THEN
+      RAISE EXCEPTION 'only opening, stock in, sale and damage entries can be corrected';
+    END IF;
+    IF src.type IN ('opening','in') THEN
+      effective := src.quantity + prior + (NEW.new_stock - NEW.previous_stock);
+    ELSE
+      effective := src.quantity - prior - (NEW.new_stock - NEW.previous_stock);
+    END IF;
+    IF effective < 0 THEN RAISE EXCEPTION 'a correction cannot make an entry negative'; END IF;
+    IF src.type = 'sale' AND effective < already THEN
+      RAISE EXCEPTION 'a sale cannot be corrected below what has been returned from it';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF src.type <> 'sale' THEN RAISE EXCEPTION 'a return must reference a sale of the same product'; END IF;
+  IF already + NEW.quantity > src.quantity - prior THEN
+    RAISE EXCEPTION 'total returned would exceed the quantity sold';
   END IF;
   RETURN NEW;
 END; $$ LANGUAGE plpgsql;
-DROP TRIGGER IF EXISTS trg_return_source ON stock_movements;
-CREATE TRIGGER trg_return_source BEFORE INSERT ON stock_movements
-  FOR EACH ROW EXECUTE FUNCTION check_return_source();
+DROP TRIGGER IF EXISTS trg_movement_source ON stock_movements;
+CREATE TRIGGER trg_movement_source BEFORE INSERT ON stock_movements
+  FOR EACH ROW EXECUTE FUNCTION check_movement_source();
 CREATE OR REPLACE FUNCTION forbid_movement_change() RETURNS trigger AS $$
 BEGIN
   RAISE EXCEPTION 'stock_movements is append-only';

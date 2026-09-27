@@ -36,10 +36,10 @@ export default async function FindSalePage({ searchParams }: { searchParams: Pro
                   <td className="num"><Link href={`/history/${m.id}`} className="link">{movementNo(m.id)}</Link></td>
                   <td className="num" style={{ whiteSpace: "nowrap" }}>{when(m.created_at, s.timezone)}</td>
                   <td className="pname">{m.name}<div className="dim"><span className="mono">{m.sku}</span> · {m.dimension}</div></td>
-                  <td className="num r">{num(m.quantity)} {m.uom}</td>
+                  <td className="num r">{num(m.corrected_quantity)} {m.uom}</td>
                   <td className="hide-s num r dim">{num(m.returned)}</td>
-                  <td className="num r" style={{ fontWeight: 650 }}>{num(m.quantity - m.returned)}</td>
-                  <td className="hide-s num">{m.amount === null ? "—" : money(m.amount, s.currency)}</td>
+                  <td className="num r" style={{ fontWeight: 650 }}>{num(m.corrected_quantity - m.returned)}</td>
+                  <td className="hide-s num">{m.amount === null ? "-" : money(m.amount, s.currency)}</td>
                   <td className="hide-s">{m.user_name}</td>
                   <td className="actcell"><div className="rowact"><Link href={`/history/${m.id}`} className="btn sm">Open sale</Link></div></td>
                 </tr>

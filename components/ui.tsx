@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { MovementRow, MovementType, ProductRow, StockStatus } from "@/lib/types";
 import { MOVEMENT_LABEL, movementNo, statusOf } from "@/lib/types";
-import { money, num, signed, when } from "@/lib/format";
+import { change, money, num, when } from "@/lib/format";
 import type { Settings } from "@/lib/auth";
 import { ArrowUUpLeft, Minus, Plus, Warning } from "@phosphor-icons/react/dist/ssr";
 
@@ -53,11 +53,11 @@ export function InventoryTable({ rows, admin, storeCanDamage }: { rows: ProductR
             <tr key={p.id}>
               <td className="pname"><Link href={`/products/${p.id}`} className="link" style={{ color: "inherit" }}>{p.name}</Link>{p.archived && <span className="tag" style={{ marginLeft: 8 }}>Archived</span>}</td>
               <td className="sku">{p.sku}</td>
-              <td className="hide-s dim">{p.category ?? "—"}</td>
-              <td>{p.dimension || "—"}</td>
+              <td className="hide-s dim">{p.category ?? "-"}</td>
+              <td>{p.dimension || "-"}</td>
               <td className="hide-s">{p.uom}</td>
               <td className="stock">{num(p.current_stock)}<span className="dim" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 400 }}> {p.uom}</span></td>
-              <td className="hide-s r num dim">{p.min_stock === null ? "—" : num(p.min_stock)}</td>
+              <td className="hide-s r num dim">{p.min_stock === null ? "-" : num(p.min_stock)}</td>
               <td><StatusBadge stock={p.current_stock} min={p.min_stock} /></td>
               <td className="actcell">
                 {!p.archived && <div className="rowact"><StockActions id={p.id} admin={admin} storeCanDamage={storeCanDamage} /></div>}
@@ -70,7 +70,7 @@ export function InventoryTable({ rows, admin, storeCanDamage }: { rows: ProductR
   );
 }
 
-const TAG: Record<MovementType, string> = { opening: "open", in: "up", return: "up", sale: "down", damage: "down" };
+const TAG: Record<MovementType, string> = { opening: "open", in: "up", return: "up", sale: "down", damage: "down", adjustment: "fix" };
 export const TypeTag = ({ t }: { t: MovementType }) => <span className={`tag ${TAG[t]}`}>{MOVEMENT_LABEL[t]}</span>;
 
 export function HistoryTable({ rows, s, showProduct = true }: { rows: MovementRow[]; s: Settings; showProduct?: boolean }) {
@@ -95,17 +95,20 @@ export function HistoryTable({ rows, s, showProduct = true }: { rows: MovementRo
                 </td>
               )}
               <td><TypeTag t={m.type} /></td>
-              <td className={`num r ${m.type === "sale" || m.type === "damage" ? "neg" : "pos"}`} style={{ fontWeight: 650 }}>{signed(m.type, m.quantity)} <span className="dim">{m.uom}</span></td>
+              <td className={`num r ${m.new_stock < m.previous_stock ? "neg" : "pos"}`} style={{ fontWeight: 650 }}>{change(m.previous_stock, m.new_stock)} <span className="dim">{m.uom}</span></td>
               <td className="hide-s num r dim">{num(m.previous_stock)}</td>
               <td className="num r" style={{ fontWeight: 600 }}>{num(m.new_stock)}</td>
               <td className="hide-s">{m.user_name} <span className="dim">({m.user_role})</span></td>
               <td className="hide-s dim">
                 {m.amount !== null && <div>{m.type === "sale" ? "Amount sold" : "Return amount"}: {money(m.amount, s.currency)}</div>}
                 {m.reason && <div>{m.reason}</div>}
+                {m.corrected_quantity !== m.quantity && <div className="warn">Corrected to {num(m.corrected_quantity)} {m.uom}</div>}
                 {m.type === "sale" && m.returned > 0 && (
-                  <div>{m.returned >= m.quantity ? "Fully returned" : `Returned ${num(m.returned)} of ${num(m.quantity)}`}</div>
+                  <div>{m.returned >= m.corrected_quantity ? "Fully returned" : `Returned ${num(m.returned)} of ${num(m.corrected_quantity)}`}</div>
                 )}
-                {m.source_movement_id && <div>Source sale <Link href={`/history/${m.source_movement_id}`} className="link">{movementNo(m.source_movement_id)}</Link></div>}
+                {m.source_movement_id && (
+                  <div>{m.type === "return" ? "Source sale" : "Corrects"} <Link href={`/history/${m.source_movement_id}`} className="link">{movementNo(m.source_movement_id)}</Link></div>
+                )}
               </td>
             </tr>
           ))}

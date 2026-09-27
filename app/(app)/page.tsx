@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getSettings, requireUser } from "@/lib/auth";
 import { dashboardStats, first, listMovements, listProducts, type SP } from "@/lib/queries";
-import { num, signed, when } from "@/lib/format";
+import { change, num, when } from "@/lib/format";
 import { PageHead, TypeTag } from "@/components/ui";
 import { MagnifyingGlass, Minus, Plus } from "@phosphor-icons/react/dist/ssr";
 
@@ -57,7 +57,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
                   <div className="sub">{m.name} · {m.user_name}</div>
                 </div>
                 <div>
-                  <div className={`q ${m.type === "sale" || m.type === "damage" ? "neg" : "pos"}`}>{signed(m.type, m.quantity)} {m.uom}</div>
+                  <div className={`q ${m.new_stock < m.previous_stock ? "neg" : "pos"}`}>{change(m.previous_stock, m.new_stock)} {m.uom}</div>
                   <div className="sub" style={{ textAlign: "right" }}>{when(m.created_at, s.timezone)}</div>
                 </div>
               </li>

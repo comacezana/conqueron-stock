@@ -56,7 +56,7 @@ export function PasswordForm({ id }: { id: number }) {
   );
 }
 
-export function SettingsForm({ v }: { v: { company: string; currency: string; timezone: string; storeCanDamage: boolean } }) {
+export function SettingsForm({ v, mailReady }: { v: { company: string; currency: string; timezone: string; storeCanDamage: boolean; reportRecipients: string }; mailReady: boolean }) {
   const [s, a, p] = useActionState<FormState, FormData>(saveSettings, {});
   return (
     <form action={a} className="form">
@@ -69,6 +69,15 @@ export function SettingsForm({ v }: { v: { company: string; currency: string; ti
         <input type="checkbox" name="store_can_damage" defaultChecked={v.storeCanDamage} style={{ marginTop: 3, width: 18, height: 18 }} />
         <span><b style={{ fontWeight: 600 }}>Store users can record Damage</b><br /><span className="hint">Off by default. Returns always stay Admin only.</span></span>
       </label>
+      <div className="field">
+        <label htmlFor="report_recipients">Monthly report recipients</label>
+        <input id="report_recipients" name="report_recipients" className="input" defaultValue={v.reportRecipients} placeholder="owner@example.com, accounts@example.com" autoComplete="off" />
+        <span className="hint">
+          {mailReady
+            ? "Separate addresses with commas. Used by the Email PDF button and by the automatic send on the 1st of each month."
+            : "Email is not set up on the server yet (SMTP settings). You can save addresses now; nothing will be sent until it is."}
+        </span>
+      </div>
       <Msg s={s} />
       <div><button className="btn primary" disabled={p}>Save settings</button></div>
     </form>

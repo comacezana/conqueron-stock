@@ -38,8 +38,8 @@ export default async function ProductsPage({ searchParams }: { searchParams: Pro
                 <tr key={p.id} style={p.archived ? { opacity: 0.65 } : undefined}>
                   <td className="pname"><Link href={`/products/${p.id}`} style={{ fontWeight: 550 }}>{p.name}</Link>{p.archived && <span className="tag" style={{ marginLeft: 8 }}>Archived</span>}</td>
                   <td className="sku">{p.sku}</td>
-                  <td className="hide-s dim">{p.category ?? "—"}</td>
-                  <td>{p.dimension || "—"}</td>
+                  <td className="hide-s dim">{p.category ?? "-"}</td>
+                  <td>{p.dimension || "-"}</td>
                   <td className="hide-s">{p.uom}</td>
                   <td className="stock">{num(p.current_stock)}</td>
                   <td><StatusBadge stock={p.current_stock} min={p.min_stock} /></td>

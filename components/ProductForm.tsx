@@ -53,7 +53,12 @@ export default function ProductForm({ product, categories }: { product?: Product
           <span className="hint">Recorded as an Opening Stock movement in the history.</span>
         </div>
       )}
-      {product && <p className="dim">Current stock is changed through stock movements only, never edited here.</p>}
+      {product && (
+        <p className="dim">
+          Current stock is {product.current_stock.toLocaleString("en-US")} {product.uom}. To fix a wrong number, use{" "}
+          <Link href={`/products/${product.id}/correct`} className="link">Correct stock</Link>, which keeps the history traceable.
+        </p>
+      )}
       {state.error && <div className="err" role="alert">{state.error}</div>}
       <div className="actions">
         <button className="btn primary" disabled={pending}>{pending ? "Saving..." : product ? "Save changes" : "Add product"}</button>
