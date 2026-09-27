@@ -11,6 +11,12 @@ const TTL = 60 * 60 * 12;
 
 function secret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  if (process.env.DATABASE_URL) {
+    // Running against a real Postgres (Neon, etc.) usually means no durable local disk to
+    // persist a generated secret on (e.g. serverless). A different secret per cold start would
+    // invalidate every session, so require one explicitly instead of failing unpredictably.
+    throw new Error("SESSION_SECRET must be set when DATABASE_URL is set (no durable local disk to store a generated one on).");
+  }
   const f = path.join(process.cwd(), "data", ".secret");
   if (!fs.existsSync(f)) fs.writeFileSync(f, randomBytes(32).toString("hex"));
   return fs.readFileSync(f, "utf8");

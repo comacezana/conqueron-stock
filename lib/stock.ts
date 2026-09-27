@@ -40,7 +40,7 @@ export async function recordMovement(i: MovementInput): Promise<MovementResult> 
       if (i.type === "return") {
         const sr = await tx.query<{ id: number; type: string; product_id: number; quantity: number }>(
           "SELECT id,type,product_id,quantity FROM stock_movements WHERE id=$1", [i.sourceMovementId ?? 0]);
-        const sale = sr.rows[0];
+        const sale = sr[0];
         if (!sale || sale.type !== "sale") return { ok: false as const, error: "A return must be linked to an original sale." };
         productId = sale.product_id;
         source = { id: sale.id, quantity: sale.quantity };
@@ -51,19 +51,19 @@ export async function recordMovement(i: MovementInput): Promise<MovementResult> 
         "SELECT current_stock, archived, uom FROM products WHERE id=$1 FOR UPDATE",
         [productId],
       );
-      const p = r.rows[0];
+      const p = r[0];
       if (!p) return { ok: false as const, error: "Product not found." };
       if (p.archived) return { ok: false as const, error: "This product is archived. Restore it before recording stock." };
       if (i.type === "opening") {
         const c = await tx.query<{ n: number }>("SELECT count(*)::int n FROM stock_movements WHERE product_id=$1", [productId]);
-        if (c.rows[0].n > 0)
+        if (c[0].n > 0)
           return { ok: false as const, error: "Opening stock already exists for this product. Use Stock In instead." };
       }
       if (source) {
         // product row is locked, so concurrent returns of this sale are serialised
         const rt = await tx.query<{ n: number }>(
           "SELECT COALESCE(sum(quantity),0)::int n FROM stock_movements WHERE source_movement_id=$1", [source.id]);
-        const remaining = source.quantity - rt.rows[0].n;
+        const remaining = source.quantity - rt[0].n;
         if (i.quantity > remaining)
           return {
             ok: false as const,

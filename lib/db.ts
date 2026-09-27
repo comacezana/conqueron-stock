@@ -1,15 +1,30 @@
-import { PGlite } from "@electric-sql/pglite";
 import { randomBytes, scryptSync } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-
-type G = typeof globalThis & { __db?: Promise<PGlite> };
-const g = globalThis as G;
 
 export function hashPassword(pw: string) {
   const salt = randomBytes(16).toString("hex");
   return `${salt}:${scryptSync(pw, salt, 32).toString("hex")}`;
 }
+
+/**
+ * The app talks to the database only through this shape, whichever engine backs it:
+ * - DATABASE_URL set  -> a real Postgres (e.g. Neon), via `pg`. Use this in production/serverless,
+ *   where there is no durable local disk to store an embedded database on.
+ * - DATABASE_URL unset -> an embedded Postgres (PGlite) stored under data/pgdata. Zero setup for
+ *   local development, or for self-hosting on a machine with a real persistent disk.
+ * Both speak the same Postgres SQL, so the schema and every query below run unchanged either way.
+ */
+export interface Tx {
+  query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
+}
+export interface Db extends Tx {
+  exec(sql: string): Promise<void>;
+  transaction<T>(fn: (tx: Tx) => Promise<T>): Promise<T>;
+}
+
+type G = typeof globalThis & { __db?: Promise<Db> };
+const g = globalThis as G;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
@@ -69,10 +84,6 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
-CREATE OR REPLACE FUNCTION forbid_movement_change() RETURNS trigger AS $$
-BEGIN
-  RAISE EXCEPTION 'stock_movements is append-only';
-END; $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION check_return_source() RETURNS trigger AS $$
 DECLARE src stock_movements%ROWTYPE; already INT;
 BEGIN
@@ -90,27 +101,19 @@ END; $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_return_source ON stock_movements;
 CREATE TRIGGER trg_return_source BEFORE INSERT ON stock_movements
   FOR EACH ROW EXECUTE FUNCTION check_return_source();
+CREATE OR REPLACE FUNCTION forbid_movement_change() RETURNS trigger AS $$
+BEGIN
+  RAISE EXCEPTION 'stock_movements is append-only';
+END; $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS trg_movements_immutable ON stock_movements;
 CREATE TRIGGER trg_movements_immutable BEFORE UPDATE OR DELETE ON stock_movements
   FOR EACH ROW EXECUTE FUNCTION forbid_movement_change();
 `;
 
-async function init(): Promise<PGlite> {
-  const dir = process.env.PGDATA_DIR || path.join(process.cwd(), "data", "pgdata");
-  fs.mkdirSync(path.dirname(dir), { recursive: true });
-  const db = new PGlite(dir);
-  await db.waitReady;
-  await db.exec(SCHEMA);
-
-  const { rows } = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM users");
-  if (rows[0].n === 0) await seed(db);
-  return db;
-}
-
-async function seed(db: PGlite) {
+async function seed(handle: Db) {
   const adminPw = process.env.ADMIN_PASSWORD || "admin123";
   const storePw = process.env.STORE_PASSWORD || "store123";
-  await db.transaction(async (tx) => {
+  await handle.transaction(async (tx) => {
     const a = await tx.query<{ id: number }>(
       "INSERT INTO users (username,name,role,password_hash) VALUES ('admin','Admin','admin',$1) RETURNING id",
       [hashPassword(adminPw)],
@@ -138,18 +141,78 @@ async function seed(db: PGlite) {
       );
       await tx.query(
         "INSERT INTO stock_movements (product_id,type,quantity,previous_stock,new_stock,created_by) VALUES ($1,'opening',$2,0,$2,$3)",
-        [r.rows[0].id, p.qty, a.rows[0].id],
+        [r[0].id, p.qty, a[0].id],
       );
     }
   });
 }
 
-export function getDb(): Promise<PGlite> {
-  if (!g.__db) g.__db = init();
+/** Note: on a fresh database, two processes cold-starting at the exact same instant could both
+ *  attempt this seed. Every table it inserts into has a unique constraint (username, sku, category
+ *  name), so the loser fails harmlessly and the database ends up correct either way. This only
+ *  matters for the first request ever made against a brand-new database. */
+async function ensureReady(handle: Db) {
+  await handle.exec(SCHEMA);
+  const rows = await handle.query<{ n: number }>("SELECT count(*)::int AS n FROM users");
+  if (rows[0].n === 0) await seed(handle);
+}
+
+async function pgHandle(): Promise<Db> {
+  const { Pool } = await import("pg");
+  const url = process.env.DATABASE_URL!;
+  const pool = new Pool({
+    connectionString: url,
+    max: 5,
+    ssl: /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false },
+  });
+  const handle: Db = {
+    async query(sql, params = []) {
+      return (await pool.query(sql, params as unknown[])).rows;
+    },
+    async exec(sql) {
+      await pool.query(sql);
+    },
+    async transaction(fn) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const tx: Tx = { query: async (sql, params = []) => (await client.query(sql, params as unknown[])).rows };
+        const result = await fn(tx);
+        await client.query("COMMIT");
+        return result;
+      } catch (e) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw e;
+      } finally {
+        client.release();
+      }
+    },
+  };
+  await ensureReady(handle);
+  return handle;
+}
+
+async function pgliteHandle(): Promise<Db> {
+  const { PGlite } = await import("@electric-sql/pglite");
+  const dir = process.env.PGDATA_DIR || path.join(process.cwd(), "data", "pgdata");
+  fs.mkdirSync(path.dirname(dir), { recursive: true });
+  const client = new PGlite(dir);
+  await client.waitReady;
+  const handle: Db = {
+    query: async (sql, params = []) => (await client.query(sql, params as unknown[])).rows as never,
+    exec: async (sql) => { await client.exec(sql); },
+    transaction: (fn) => client.transaction((tx) => fn({ query: async (sql, params = []) => (await tx.query(sql, params as unknown[])).rows as never })),
+  };
+  await ensureReady(handle);
+  return handle;
+}
+
+export function getDb(): Promise<Db> {
+  if (!g.__db) g.__db = process.env.DATABASE_URL ? pgHandle() : pgliteHandle();
   return g.__db;
 }
 
 export async function q<T = Record<string, unknown>>(sql: string, params: unknown[] = []): Promise<T[]> {
   const db = await getDb();
-  return (await db.query<T>(sql, params)).rows;
+  return db.query<T>(sql, params);
 }

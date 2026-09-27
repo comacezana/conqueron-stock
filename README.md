@@ -1,29 +1,72 @@
 # Conqueron Stock Ledger
 
-Inventory and stock-movement app for Conqueron Trading plc. Next.js + TypeScript + PostgreSQL (embedded PGlite, so nothing to install).
+Inventory and stock-movement app for Conqueron Trading plc. Next.js + TypeScript + PostgreSQL.
 
-## Run
+The database backend switches automatically:
+
+- **`DATABASE_URL` unset** — an embedded Postgres (PGlite), stored in `data/pgdata`. Nothing to install, but needs a real persistent disk (a self-hosted VM), never a serverless/edge host.
+- **`DATABASE_URL` set** — a real Postgres over the network, via `pg`. Use this for any serverless or edge host (Vercel, Cloudflare, etc.), since those have no durable local disk. [Neon](https://neon.tech) has a free tier that works well for this.
+
+Both paths run the exact same schema and queries (`lib/db.ts`), so nothing else in the app changes between them.
+
+## Run locally
 
 ```bash
 npm install
 npm run dev        # http://localhost:3000
-# production: npm run build && npm start
 ```
 
-First start creates `data/pgdata` and seeds the 56 products from `data/catalog.json` (extracted from "MODJO SHIPPED QUANTITY FOR SAMUEL") as Opening Stock movements.
+First start creates `data/pgdata` and seeds the 56 products from `data/catalog.json` (extracted from "MODJO SHIPPED QUANTITY FOR SAMUEL") as Opening Stock movements. Same seeding runs automatically against a real Postgres the first time it's queried.
 
-Default logins (change them under Users, or set `ADMIN_PASSWORD` / `STORE_PASSWORD` before first start):
+Default logins (change them under Users, or set `ADMIN_PASSWORD` / `STORE_PASSWORD` before first start — they only take effect the very first time the database seeds):
 
 - `admin` / `admin123`
 - `store` / `store123`
 
-Env: `SESSION_SECRET` (else generated in `data/.secret`), `INSECURE_COOKIES=1` if serving production over plain HTTP.
+## Deploy — Neon (database) + any host (app)
+
+### 1. Create the database
+
+1. Sign up at [neon.tech](https://neon.tech) (free tier, no card needed).
+2. Create a project. Copy the connection string it gives you (starts `postgresql://...`).
+
+### 2. Set environment variables on your host
+
+```
+DATABASE_URL=<the Neon connection string>
+SESSION_SECRET=<a long random string — required whenever DATABASE_URL is set>
+ADMIN_PASSWORD=<real password, only used the very first time the database seeds>
+STORE_PASSWORD=<same>
+NODE_ENV=production
+```
+
+Generate a `SESSION_SECRET`:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+The app refuses to start without `SESSION_SECRET` once `DATABASE_URL` is set — there's no durable disk to persist a generated one on, and a different secret each cold start would silently log everyone out.
+
+### 3. Deploy the app
+
+Any standard Next.js host works now, since the app itself is stateless — it's just a client of Neon. On **Vercel**: import the GitHub repo, add the environment variables above, deploy. No persistent volume needed, no memory concerns from an embedded database, because there isn't one anymore.
+
+### 4. First request
+
+The first request that touches the database creates the schema and seeds the 56 products automatically. Sign in as `admin`, go to **Users**, and set real passwords.
+
+## Self-hosting instead (embedded database, no Neon)
+
+Leave `DATABASE_URL` unset. Needs a host with a real persistent disk for `data/pgdata` (a VM, or a container platform with a persistent volume) — not Vercel, not Cloudflare Workers, not any platform without durable local storage.
 
 ## Tests
 
 ```bash
 npm test   # 26 checks: sales, no negative stock, partial/over returns, permissions, immutability, concurrency
 ```
+
+Runs against the embedded database (no `DATABASE_URL` needed). Since both backends run identical SQL, this also validates the Neon path — but after first deploying to Neon, sign in once and check Inventory to confirm the seed ran.
 
 ## Rules enforced on the server
 
@@ -36,5 +79,3 @@ npm test   # 26 checks: sales, no negative stock, partial/over returns, permissi
 ## Decisions taken (change in code/Settings if wrong)
 
 Damage can be recorded by Store (toggle in Settings); sale amount optional; currency label ETB; whole-number quantities; products with no minimum show MINIMUM NOT SET (zero stock is always OUT OF STOCK); no categories or minimums are invented at import; "Suggest from product names" on Categories is an Admin action that only fills empty categories.
-
-Moving to a hosted PostgreSQL later: replace `lib/db.ts` with a `pg` pool; the SQL is standard Postgres.

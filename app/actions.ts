@@ -75,7 +75,7 @@ export async function saveProduct(_: FormState, f: FormData): Promise<FormState>
       const created = await db.query<{ id: number }>(
         "INSERT INTO products (name,sku,description,dimension,uom,category_id,min_stock) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id", vals);
       if (open) {
-        const r = await recordMovement({ productId: created.rows[0].id, type: "opening", quantity: open, userId: user.id, role: "admin", storeCanDamage: true });
+        const r = await recordMovement({ productId: created[0].id, type: "opening", quantity: open, userId: user.id, role: "admin", storeCanDamage: true });
         if (!r.ok) return { error: r.error };
       }
     }
